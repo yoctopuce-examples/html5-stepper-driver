@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Trivial stepper driver using a Yocto-IO</title>
+  <script src="../../lib/yocto_api.js"></script>
+  <script src="../../lib/yocto_digitalio.js"></script>
+  <script>
+    var io;           // Yocto-IO digital interface
+    var scale;        // scale canvas
+    var period = 5;   // 5 [ms] = 200 steps/s
+    var position = -1;// current stepper position
+    var target = 0;   // target stepper position
+
+    function drawScale()
+    {
+      let canvas = document.getElementById('scale');
+      ctx = canvas.getContext('2d');
+      ctx.font = '12pt sans-serif';
+      ctx.fillRect(0, 10, 720, 1);
+      for(let i = 0; i <= 720; i += 90) {
+        ctx.fillRect(i, 0, 1, 20);
+        ctx.textAlign = (i <= 360 ? 'left' : 'right');
+        ctx.fillText((i-360)+'°', i, 38);
+      }
+      canvas.ctx = ctx;
+      canvas.bgImage = ctx.getImageData(0, 0, canvas.clientWidth, canvas.clientHeight);
+      return canvas;   
+    }
+
+    async function startDemo() 
+    {
+      // Connect to local VirtualHub
+      let errmsg = new YErrorMsg();
+      if (await YAPI.RegisterHub('127.0.0.1', errmsg) != YAPI.SUCCESS) {
+        alert('Cannot contact VirtualHub on 127.0.0.1: ' + errmsg.msg);
+        return;
+      }
+      // Find Yocto-IO interface, enable stepper driver code
+      io = YDigitalIO.FirstDigitalIO();
+      if(!io) {
+        alert('No DigitalIO interface found');
+        return;
+      }
+      // Draw a scale, add an event listener to move stepper target
+      scale = drawScale();
+      scale.addEventListener('mousedown', (evt) => { 
+        target = Math.round((evt.clientX - scale.offsetLeft - 360) * 200 / 360); 
+      });
+      // Powerup current stepper phase
+      stepperClock();
+    }
+
+    function stepperClock()
+    {
+      if(position != target) {
+        position += (position > target ? +1 : -1);
+        io.set_portState(1 << (position & 3));
+        // show current position on scale
+        scale.ctx.putImageData(scale.bgImage, 0, 0);
+        scale.ctx.fillStyle = 'blue';
+        scale.ctx.fillRect(Math.round((position * 360) / 200 + 358), 8, 5, 5);
+      }
+      setTimeout(stepperClock, period);
+    }
+
+    startDemo();
+  </script>
+</head>
+<body style='font-family: sans-serif;'>
+  <h2>Trivial stepper driver using a Yocto-IO</h2>
+  Click on axis below to move to selected position<br><br>
+  <canvas id='scale' width='721' height='40'></canvas>
+</body>
+</html>
