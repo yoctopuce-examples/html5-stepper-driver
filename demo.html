@@ -54,7 +54,7 @@
     function stepperClock()
     {
       if(position != target) {
-        position += (position > target ? +1 : -1);
+        position += (position < target ? +1 : -1);
         io.set_portState(1 << (position & 3));
         // show current position on scale
         scale.ctx.putImageData(scale.bgImage, 0, 0);
